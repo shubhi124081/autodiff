@@ -89,13 +89,9 @@ jnll_spde = function( parlist, what="jnll" ){
   nll_prior = -1 * dnorm( ln_q, mean=0, sd=0.15, log=TRUE )
   out = nll_data + nll_omega + nll_prior
 
-  # Make index
+  # Report density
   omega_gc = A_gs %*% omega_sc
-  D_gc = array(0, dim=c(length(area_g),3))
-  for( c_index in 1:3 ){
-    D_gc[,c_index] = area_g * exp(mu_c[c_index] + omega_gc[,c_index])
-  }
-  # reports
+  D_gc = outer(area_g,rep(1,3)) * exp(outer(rep(1,length(grid)),mu_c) + omega_gc)
   REPORT( D_gc )
   return(out)
 }
@@ -115,9 +111,10 @@ build_obj = function(){
     ridge.correct = TRUE
   )
 }
+years_to_run = c(2007, 2010)
 
 # Unpack and run
-dat_1 = subset( dat, Year == 2007 )
+dat_1 = subset( dat, Year == years_to_run[1] )
 b_i = dat_1$Catch_KG
 Gear = dat_1$Gear
 A_is = fm_evaluator( mesh, loc=as.matrix(dat_1[,c('Lon','Lat')]) )$proj$A
@@ -128,7 +125,7 @@ sdrep_1 = sdreport( obj_1 )
 D1_gc = obj_1$report()$D_gc
 
 # Unpack and run
-dat_2 = subset( dat, Year == 2018 )
+dat_2 = subset( dat, Year == years_to_run[2] )
 b_i = dat_2$Catch_KG
 Gear = dat_2$Gear
 A_is = fm_evaluator( mesh, loc=as.matrix(dat_2[,c('Lon','Lat')]) )$proj$A
@@ -155,12 +152,12 @@ png( file="Proportion_of_total_density.png", width=7.5, height=6, units="in", re
     if(t==1) add_legend( seq(0,1,length=6), legend_y=c(0.6,1), legend_x=c(0.95,1), col=viridis(10) )
     if(t==1) mtext( side=3, text = "Bottom trawl" )
     if(t==2) mtext( side=3, text = "Accoustics" )
-    if(t==2) mtext( side=4, text = "2007", line=0.5 )
-    if(t==4) mtext( side=4, text = "2018", line=0.5 )
+    if(t==2) mtext( side=4, text = years_to_run[1], line=0.5 )
+    if(t==4) mtext( side=4, text = years_to_run[2], line=0.5 )
     if(t==1) axis(2)
     if(t==3) axis(2)
     if(t==3) axis(1)
     if(t==4) axis(1)
   }
-  mtext( side=c(1,2,3,4), outer=TRUE, text=c("Longitude","Latitude","Proportion in gear","Year"), line=1, font = 2 )
+  mtext( side=c(1,2,3,4), outer=TRUE, text=c("Longitude","Latitude","Proportion available to gear","Year"), line=1, font = 2 )
 dev.off()
