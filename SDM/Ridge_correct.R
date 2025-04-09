@@ -11,25 +11,10 @@ library(viridisLite)
 library(rnaturalearth)
 
 #
-#data(acoustic_and_trawl, package = "FishStatsUtils" )
-#dat <- subset(acoustic_and_trawl, Year == 2018)
-#dat <- acoustic_and_trawl
 dat = read.csv( "data_real.csv" )
-
-# Exclude years as sensitivity
-#dat = subset( dat, Year %in% c(2007:2010, 2012, 2014, 2016, 2018))
-
 dat_sf = st_as_sf( dat, coords = c("Lon","Lat") )
 
-# 
-#data("eastern_bering_sea_grid", package="FishStatsUtils")
-#extrap = eastern_bering_sea_grid
-#year_set = sort(unique(dat$Year))
-year_set = min(dat$Year):max(dat$Year)
-
 # Get from shapefile
-#shape_dir = R'(C:\Users\James.Thorson\Desktop\Git\FishStatsUtils\inst\region_shapefiles\EBSshelf)'
-shape_dir = getwd()
 domain = st_read( file.path(shape_dir,"EBSshelf.shp") )
 domain = st_geometry(domain)
 domain = st_transform( domain, crs=st_crs("EPSG:4326") )
@@ -64,12 +49,9 @@ parlist = list(
   invf_p = 0
 )
 
+############ START RTMB CODE BLOCK
 jnll_spde = function( parlist, what="jnll" ){
-  "c" <- ADoverload("c")
-  "[<-" <- ADoverload("[<-")
   getAll(parlist)
-  phi = exp(ln_phi)
-  p = plogis(invf_p) + 1
   Q = (exp(4*ln_kappa)*M0 + 2*exp(2*ln_kappa)*M1 + M2) * exp(2*ln_tau)
   omega_ic = A_is %*% omega_sc
   # Likelihood terms
@@ -81,23 +63,24 @@ jnll_spde = function( parlist, what="jnll" ){
     }
     if(Gear[i] == "AT2") yhat = exp( mu_c[2] + omega_ic[i,2])
     if(Gear[i] == "AT3") yhat = exp( mu_c[3] + omega_ic[i,3])
-    nll_data = nll_data - RTMB:::Term(dtweedie(x=b_i[i], mu=yhat, phi=phi, p=p, log=TRUE))
+    nll_data = nll_data -
+      dtweedie( x=b_i[i], mu=yhat, phi=exp(ln_phi),
+                p=plogis(invf_p) + 1, log=TRUE)
   }
   for( c_index in 1:3 ){
     nll_omega = nll_omega - dgmrf( omega_sc[,c_index], Q = Q, log=TRUE )
   }
   nll_prior = -1 * dnorm( ln_q, mean=0, sd=0.15, log=TRUE )
-  out = nll_data + nll_omega + nll_prior
 
   # Report density
   omega_gc = A_gs %*% omega_sc
   D_gc = outer(area_g,rep(1,3)) * exp(outer(rep(1,length(grid)),mu_c) + omega_gc)
   REPORT( D_gc )
-  return(out)
+  return( nll_data + nll_omega + nll_prior )
 }
-extra_adreport = FALSE
+############ END RTMB CODE BLOCK
 
-# 
+#
 map = list()
   map$ln_q = factor(NA)
 build_obj = function(){
@@ -106,9 +89,7 @@ build_obj = function(){
     par = parlist,
     random = "omega_sc",
     silent = TRUE,
-    #profile = "mu_c",
-    map = map,
-    ridge.correct = TRUE
+    map = map
   )
 }
 years_to_run = c(2007, 2010)
