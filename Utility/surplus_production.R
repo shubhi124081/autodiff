@@ -12,7 +12,8 @@ set.seed(101)
 # Function to calculate fishing rate policy given biomass
 policy <-
 function( B,
-          list_policy ){
+          list_policy,
+          list_bio ){
 
   Brate = exp(list_policy$ln_Brate)
   Bmid = plogis(list_policy$invlogis_Kratio) * list_bio$K
@@ -37,13 +38,13 @@ function( list_bio,
   eps = rnorm(n_years, sd = sigmaB)
   delta = rnorm(n_years, sd = sigmaF)
 
-  # Given Bstart at beginning of year
+  # Project each year in sequence
   for( yr in seq_len(n_years) ){
     # Production
     P_t[yr] = r * B_t[yr] * (1 - B_t[yr] / K)
     P_t[yr] = P_t[yr] * exp(eps[yr] - sigmaB^2 / 2)
     # Fishing mortality
-    F_t[yr] = policy( B_t[yr] + P_t[yr], list_policy )
+    F_t[yr] = policy( B_t[yr] + P_t[yr], list_policy, list_bio )
     F_t[yr] = F_t[yr] * exp(delta[yr] - sigmaF^2 / 2)
     # Catch
     C_t[yr] = (B_t[yr] + P_t[yr]) * (1 - exp(-F_t[yr]))
@@ -141,7 +142,7 @@ png( file = "utility.png", width=5, height=5, res=200, units="in" )
   do_plot = function( obj, sigmaB, sigmaF ){
     parhat = obj$env$parList()
     B = seq(1, 1 * list_bio$K, length=100)
-    F = sapply( B, parhat, FUN = policy )
+    F = sapply( B, parhat, FUN = policy, list_bio = list_bio )
     Flow = F * exp(-1 * sigmaF - sigmaF^2 / 2)
     Fhigh = F * exp(1 * sigmaF - sigmaF^2 / 2)
     P = list_bio$r * B * (1 - B / list_bio$K)
