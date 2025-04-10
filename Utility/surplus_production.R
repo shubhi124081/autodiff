@@ -3,7 +3,6 @@
 setwd( R'(C:\Users\James.Thorson\Desktop\Git\autodiff\Utility)')
 
 library(RTMB)
-set.seed(101)
 
 #####################
 # Functions
@@ -86,6 +85,16 @@ list_policy = list(
   ln_Brate = log(5)
 )
 
+# Example run
+list_bio$sigmaB = 0.1
+list_bio$sigmaF = 0.1
+obj <- MakeADFun( sample_catch,
+                  list_policy )
+opt = nlminb( start = obj$par,
+              objective = obj$fn,
+              gradient = obj$gr )
+opt$par # Optimal policy parameters
+
 ####################
 # Comparison
 ####################
@@ -101,8 +110,7 @@ obj <- MakeADFun( sample_catch,
                   list_policy )
 opt = nlminb( start = obj$par,
               objective = obj$fn,
-              gradient = obj$gr,
-              control = list(trace=1) )
+              gradient = obj$gr )
 
 # SE doesn't mean anything (objective is not likelihood!), but Hessian should be posdef
 H = optimHess( opt$par, obj$fn, obj$gr )
@@ -115,8 +123,7 @@ obj_2 <- MakeADFun( sample_catch,
                     list_policy)
 opt_2 = nlminb( start = obj_2$par,
               objective = obj_2$fn,
-              gradient = obj_2$gr,
-              control = list(trace=1) )
+              gradient = obj_2$gr )
 
 ## Visualize curve ... not very interesting
 #J_z2 = rep(NA, 10)
