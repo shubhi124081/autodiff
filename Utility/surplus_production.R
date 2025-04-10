@@ -27,23 +27,23 @@ function( list_bio,
           list_both ){
 
   # Store sequence of updates
+  getAll( list_bio, list_both )
   P_t = F_t = C_t = B_t = rep(0, n_years)
   B_t[1] = list_bio$K
 
   # Given Bstart at beginning of year
-  for( t_index in seq_len(n_years) ){
+  for( yr in seq_len(n_years) ){
     # Production
-    P_t[t_index] = list_bio$r * B_t[t_index] * (1 - B_t[t_index] / list_bio$K)
-    P_t[t_index] = P_t[t_index] * exp(list_bio$sigmaB * list_both$eps[t_index] - list_bio$sigmaB^2 / 2)
+    P_t[yr] = r * B_t[yr] * (1 - B_t[yr] / K)
+    P_t[yr] = P_t[yr] * exp(sigmaB * eps[yr] - sigmaB^2 / 2)
     # Fishing mortality
-    F_t[t_index] = policy( B_t[t_index] + P_t[t_index], list_both )
-    F_t[t_index] = F_t[t_index] * exp(list_bio$sigmaF * list_both$delta[t_index] - list_bio$sigmaF^2 / 2)
+    F_t[yr] = policy( B_t[yr] + P_t[yr], list_both )
+    F_t[yr] = F_t[yr] * exp(sigmaF * delta[yr] - sigmaF^2 / 2)
     # Catch
-    C_t[t_index] = (B_t[t_index] + P_t[t_index]) * (1 - exp(-F_t[t_index]))
+    C_t[yr] = (B_t[yr] + P_t[yr]) * (1 - exp(-F_t[yr]))
     # Update biomass at end of year
-    if(t_index < n_years) B_t[t_index+1] = B_t[t_index] + P_t[t_index] - C_t[t_index]
+    if(yr < n_years) B_t[yr+1] = B_t[yr] + P_t[yr] - C_t[yr]
   }
-
   return(C_t)
 }
 
