@@ -24,51 +24,44 @@ function( B,
 # Project dynamics given biology, policy, process and implementation errors
 project <-
 function( list_bio,
-          list_both ){
+          list_policy,
+          seed = NULL ){
 
   # Store sequence of updates
-  getAll( list_bio, list_both )
+  getAll( list_bio, list_policy )
   P_t = F_t = C_t = B_t = rep(0, n_years)
   B_t[1] = list_bio$K
+
+  # Simulate process and implementation errors
+  set.seed(seed)
+  eps = rnorm(n_years, sd = sigmaB)
+  delta = rnorm(n_years, sd = sigmaF)
 
   # Given Bstart at beginning of year
   for( yr in seq_len(n_years) ){
     # Production
     P_t[yr] = r * B_t[yr] * (1 - B_t[yr] / K)
-    P_t[yr] = P_t[yr] * exp(sigmaB * eps[yr] - sigmaB^2 / 2)
+    P_t[yr] = P_t[yr] * exp(eps[yr] - sigmaB^2 / 2)
     # Fishing mortality
-    F_t[yr] = policy( B_t[yr] + P_t[yr], list_both )
-    F_t[yr] = F_t[yr] * exp(sigmaF * delta[yr] - sigmaF^2 / 2)
+    F_t[yr] = policy( B_t[yr] + P_t[yr], list_policy )
+    F_t[yr] = F_t[yr] * exp(delta[yr] - sigmaF^2 / 2)
     # Catch
     C_t[yr] = (B_t[yr] + P_t[yr]) * (1 - exp(-F_t[yr]))
     # Update biomass at end of year
     if(yr < n_years) B_t[yr+1] = B_t[yr] + P_t[yr] - C_t[yr]
   }
-  return(C_t)
+  return(mean(C_t))
 }
 
 # Sample realized catches
 sample_catch <-
-function( n_eval,
-          list_policy,
-          seed = NULL ){
+function( list_policy ){
 
-  rerun = function(list_policy, run_num, seed ){
-    set.seed(seed + run_num)
-    list_policy$eps = rnorm(n_years)
-    list_policy$delta = rnorm(n_years)
-    C_t = project( list_bio,
-                   list_policy )
-    mean(C_t)
-  }
-  C_z = sapply( X = seq_len(n_eval), FUN = rerun, list_policy = list_policy, seed = seed )
-  neg_log_mean_C = -1 * log(mean(C_z))
-  return( neg_log_mean_C )
-}
-
-# Calculate neg-log-utility given policy parameters
-negJ_wrt_list_both = function( list_policy ){
-  sample_catch( n_eval = 100, list_policy, seed = 101 )
+  C_z = sapply( X = seq_len(n_eval) + seed,
+                FUN = project,
+                list_policy = list_policy,
+                list_bio = list_bio )
+  return( -1 * log(mean(C_z)) )
 }
 
 #####################
@@ -76,6 +69,8 @@ negJ_wrt_list_both = function( list_policy ){
 #####################
 
 n_years = 100
+n_eval = 100
+seed = 101
 
 # Simulation parameters (fixed)
 list_bio = list(
@@ -101,7 +96,7 @@ sigmaF_z = c( 0.1, 0.5 )
 #
 list_bio$sigmaB = sigmaB_z[1]
 list_bio$sigmaF = sigmaF_z[1]
-obj <- MakeADFun( negJ_wrt_list_both,
+obj <- MakeADFun( sample_catch,
                   list_policy )
 opt = nlminb( start = obj$par,
               objective = obj$fn,
@@ -115,7 +110,7 @@ eigen(H)$values
 #
 list_bio$sigmaB = sigmaB_z[2]
 list_bio$sigmaF = sigmaF_z[2]
-obj_2 <- MakeADFun( negJ_wrt_list_both,
+obj_2 <- MakeADFun( sample_catch,
                     list_policy)
 opt_2 = nlminb( start = obj_2$par,
               objective = obj_2$fn,
