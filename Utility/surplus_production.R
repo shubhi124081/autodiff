@@ -28,21 +28,20 @@ function( list_bio,
 
   # Store sequence of updates
   P_t = F_t = C_t = B_t = rep(0, n_years)
-  Bstart = list_bio$K
+  B_t[1] = list_bio$K
 
   # Given Bstart at beginning of year
   for( t_index in seq_len(n_years) ){
     # Production
-    P_t[t_index] = list_bio$r * Bstart * (1 - Bstart / list_bio$K)
+    P_t[t_index] = list_bio$r * B_t[t_index] * (1 - B_t[t_index] / list_bio$K)
     P_t[t_index] = P_t[t_index] * exp(list_bio$sigmaB * list_both$eps[t_index] - list_bio$sigmaB^2 / 2)
     # Fishing mortality
-    F_t[t_index] = policy( Bstart + P_t[t_index], list_both )
+    F_t[t_index] = policy( B_t[t_index] + P_t[t_index], list_both )
     F_t[t_index] = F_t[t_index] * exp(list_bio$sigmaF * list_both$delta[t_index] - list_bio$sigmaF^2 / 2)
     # Catch
-    C_t[t_index] = (Bstart + P_t[t_index]) * (1 - exp(-F_t[t_index]))
-    # Bend
-    B_t[t_index] = Bstart + P_t[t_index] - C_t[t_index]
-    Bstart = B_t[t_index]
+    C_t[t_index] = (B_t[t_index] + P_t[t_index]) * (1 - exp(-F_t[t_index]))
+    # Update biomass at end of year
+    if(t_index < n_years) B_t[t_index+1] = B_t[t_index] + P_t[t_index] - C_t[t_index]
   }
 
   return(C_t)
@@ -80,10 +79,8 @@ n_years = 100
 
 # Simulation parameters (fixed)
 list_bio = list(
-  r = 0.2,       # MSY = rK / 4
-  K = 1000,
-  sigmaB = 0.1,
-  sigmaF = 0.1
+  r = 0.2,  # MSY = rK / 4 = 50
+  K = 1000
 )
 
 # Policy parameters (to estimate)
@@ -97,6 +94,7 @@ list_policy = list(
 # Comparison
 ####################
 
+# Compare sets of implementation and process error variances
 sigmaB_z = c( 0.1, 0.1 )
 sigmaF_z = c( 0.1, 0.5 )
 
