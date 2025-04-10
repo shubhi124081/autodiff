@@ -125,22 +125,6 @@ opt_2 = nlminb( start = obj_2$par,
               objective = obj_2$fn,
               gradient = obj_2$gr )
 
-## Visualize curve ... not very interesting
-#J_z2 = rep(NA, 10)
-#sigmaB_z2 = exp( seq(log(0.01),log(1), length=length(J_z2)) )
-#for(z2 in seq_along(J_z2)){
-#  list_bio$sigmaF = 0.1
-#  list_bio$sigmaB = sigmaB_z2[z2]
-#  obj_z2 <- MakeADFun( negJ_wrt_list_both,
-#                       map = map,
-#                       list_both,
-#                       silent = TRUE )
-#  opt_z2 = nlminb( start = obj_z2$par,
-#                objective = obj_z2$fn,
-#                gradient = obj_z2$gr )
-#  J_z2[z2] = exp( opt_z2$obj )
-#}
-
 # Visualize production and policy functions
 png( file = "utility.png", width=5, height=5, res=200, units="in" )
   par( mfrow=c(2,1), mgp=c(2,0.5,0), mar=c(1,1,0,1), oma=c(2,2,1,2) )
@@ -169,4 +153,45 @@ png( file = "utility.png", width=5, height=5, res=200, units="in" )
   margin = c("Population biomass", "Production (+/- process error)", "Fishing rate policy (+/- implementation error)")
   mtext( side=c(1,2,4), outer=TRUE, line=c(1,1,1), text=margin )
   legend( "top", bty="n", fill = c("blue","red"), legend = c("Production", "Fishing rate"), ncol = 2 )
+dev.off()
+
+#######################
+# Additional exploration
+#######################
+
+# Visualize expected catch w.r.t. sigmaF ... not very interesting
+J_z2 = rep(NA, 8)
+pars_z2z = matrix(NA, nrow=length(J_z2), ncol=3)
+sigmaF_z2 = exp( seq(log(0.01),log(1), length=length(J_z2)) )
+for(z2 in seq_along(J_z2)){
+  message( "Running ", z2, " / ", length(J_z2) )
+  list_bio$sigmaF = sigmaF_z2[z2]
+  list_bio$sigmaB = 0.1
+   obj_z2 <- MakeADFun( sample_catch,
+                       list_policy,
+                       silent = TRUE )
+  opt_z2 = nlminb( start = obj_z2$par,
+                objective = obj_z2$fn,
+                gradient = obj_z2$gr )
+  J_z2[z2] = exp( opt_z2$obj )
+  pars_z2z[z2,] = opt_z2$par
+}
+
+B = seq(1, 1 * list_bio$K, length=100)
+F = apply( pars_z2z, MARGIN=1,
+          FUN = \(parvec){
+            sapply( B,
+                    relist(parvec, list_policy),
+                    FUN = policy, list_bio = list_bio )
+          } )
+png( "utility-2.png", width=4, height=4, res=200, units="in" )
+  par( mar=c(3,3,1,1), mgp=c(2,0.5,0), tck=-0.02 )
+  matplot( x = B, y = F, xlab = "Population biomass", ylab = "Fishing rate policy",
+           col = viridis(ncol(F)), xaxs="i", yaxs="i",  ylim = c(0,1),
+           type = "l", lty = "solid", lwd = 2 )
+  legend( "topleft",
+          bty = "n",
+          legend = formatC(sigmaF_z2,digits=3,format="f"),
+          fill = viridis(ncol(F)),
+          title = "sigmaF" )
 dev.off()
